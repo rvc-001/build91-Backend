@@ -7,6 +7,8 @@ router = APIRouter()
 
 @router.get("")
 @router.get("/")
+@router.head("")
+@router.head("/")
 def health_check(response: Response):
     health_status = {
         "status": "healthy",
