@@ -123,11 +123,11 @@ def update_metadata(request: MetadataUpdateRequest):
     if request.expiry_date:
         try:
             # Assuming format is YYYY-MM-DD
-            expiry = datetime.strptime(request.expiry_date.split('T')[0], "%Y-%m-%d").date()
+            expiry = datetime.strptime(request.expiry_date.strip().split('T')[0], "%Y-%m-%d").date()
             if expiry <= datetime.now().date():
                 raise HTTPException(status_code=400, detail="Expiry date must be in the future")
         except ValueError:
-            pass # ignore if it cannot be parsed
+            raise HTTPException(status_code=400, detail="Invalid expiry date format")
 
     success = put_metadata_to_db(
         request.bucket, 
