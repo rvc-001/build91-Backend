@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
 from typing import Optional
 import uuid
-from s3_service import get_available_buckets, generate_presigned_url, copy_object, delete_object, get_object_metadata, put_object_metadata
-
+from s3_service import get_available_buckets, generate_presigned_url, copy_object, delete_object
+from supabase_service import get_metadata_from_db, put_metadata_to_db
 router = APIRouter()
 
 class UploadRequest(BaseModel):
@@ -93,6 +93,8 @@ def delete_item(bucket: str, object_key: str):
         
     success = delete_object(bucket, object_key)
     if success:
+        from supabase_service import delete_metadata_from_db
+        delete_metadata_from_db(bucket, object_key)
         return {"message": "Object deleted successfully"}
     else:
         raise HTTPException(status_code=500, detail="Failed to delete object in S3")
@@ -103,25 +105,39 @@ class MetadataUpdateRequest(BaseModel):
     alt_text: str
     tags: str
     expiry_date: str
+    url: str = ""
 
 @router.get("/metadata")
 def get_metadata(bucket: str, key: str):
     if bucket not in get_available_buckets():
         raise HTTPException(status_code=400, detail="Invalid bucket")
-    return get_object_metadata(bucket, key)
+    return get_metadata_from_db(bucket, key)
+
+from datetime import datetime
 
 @router.post("/metadata")
 def update_metadata(request: MetadataUpdateRequest):
     if request.bucket not in get_available_buckets():
         raise HTTPException(status_code=400, detail="Invalid bucket")
-    success = put_object_metadata(
+        
+    if request.expiry_date:
+        try:
+            # Assuming format is YYYY-MM-DD
+            expiry = datetime.strptime(request.expiry_date.split('T')[0], "%Y-%m-%d").date()
+            if expiry <= datetime.now().date():
+                raise HTTPException(status_code=400, detail="Expiry date must be in the future")
+        except ValueError:
+            pass # ignore if it cannot be parsed
+
+    success = put_metadata_to_db(
         request.bucket, 
         request.key, 
         request.alt_text, 
         request.tags, 
-        request.expiry_date
+        request.expiry_date,
+        request.url
     )
     if success:
         return {"message": "Metadata updated successfully"}
     else:
-        raise HTTPException(status_code=500, detail="Failed to update S3 object metadata")
+        raise HTTPException(status_code=500, detail="Failed to update object metadata in database")

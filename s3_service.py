@@ -3,6 +3,10 @@ import boto3
 from botocore.exceptions import ClientError
 from botocore.client import Config
 from dotenv import load_dotenv
+import mimetypes
+
+# Fix for webp not being recognized on some systems
+mimetypes.add_type('image/webp', '.webp')
 
 load_dotenv()
 
