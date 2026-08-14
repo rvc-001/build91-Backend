@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import upload, gallery
+from routers import upload, gallery, health
 
 app = FastAPI(title="S3 Upload System API")
 
@@ -15,6 +15,8 @@ app.add_middleware(
 
 app.include_router(upload.router, prefix="/api/upload", tags=["Upload"])
 app.include_router(gallery.router, prefix="/api/gallery", tags=["Gallery"])
+app.include_router(health.router, prefix="/api/health", tags=["Health"])
+app.include_router(health.router, prefix="/health", tags=["Health"])
 
 @app.get("/")
 def read_root():
