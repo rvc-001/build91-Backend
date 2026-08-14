@@ -59,15 +59,21 @@ def list_objects(bucket_name: str, max_keys: int = 20, continuation_token: str =
         response = s3_client.list_objects_v2(**kwargs)
         
         # Get signed urls for reading objects (if they are private)
+        import mimetypes
         objects = []
         for obj in response.get("Contents", []):
+            params = {"Bucket": bucket_name, "Key": obj["Key"]}
+            mime_type, _ = mimetypes.guess_type(obj["Key"])
+            if mime_type:
+                params["ResponseContentType"] = mime_type
+                
             objects.append({
                 "key": obj["Key"],
                 "size": obj["Size"],
                 "last_modified": obj["LastModified"],
                 "url": s3_client.generate_presigned_url(
                     "get_object",
-                    Params={"Bucket": bucket_name, "Key": obj["Key"]},
+                    Params=params,
                     ExpiresIn=3600
                 )
             })
