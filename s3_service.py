@@ -105,3 +105,45 @@ def delete_object(bucket_name: str, object_key: str):
     except ClientError as e:
         print(f"Error deleting object: {e}")
         return False
+
+def get_object_metadata(bucket_name: str, object_key: str):
+    try:
+        response = s3_client.get_object_tagging(Bucket=bucket_name, Key=object_key)
+        tags = {tag["Key"]: tag["Value"] for tag in response.get("TagSet", [])}
+        
+        def safe_decode(val):
+            if not val:
+                return ""
+            try:
+                return bytes.fromhex(val).decode("utf-8")
+            except Exception:
+                return val
+                
+        return {
+            "alt_text": safe_decode(tags.get("alt_text", "")),
+            "tags": safe_decode(tags.get("tags", "")),
+            "expiry_date": tags.get("expiry_date", "")
+        }
+    except ClientError as e:
+        print(f"Error getting metadata: {e}")
+        return {"alt_text": "", "tags": "", "expiry_date": ""}
+
+def put_object_metadata(bucket_name: str, object_key: str, alt_text: str, tags: str, expiry_date: str):
+    try:
+        def safe_encode(val):
+            return val.encode("utf-8").hex() if val else ""
+            
+        tag_set = [
+            {"Key": "alt_text", "Value": safe_encode(alt_text)},
+            {"Key": "tags", "Value": safe_encode(tags)},
+            {"Key": "expiry_date", "Value": expiry_date or ""}
+        ]
+        s3_client.put_object_tagging(
+            Bucket=bucket_name,
+            Key=object_key,
+            Tagging={"TagSet": tag_set}
+        )
+        return True
+    except ClientError as e:
+        print(f"Error putting metadata: {e}")
+        return False

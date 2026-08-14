@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel
 from typing import Optional
 import uuid
-from s3_service import get_available_buckets, generate_presigned_url, copy_object, delete_object
+from s3_service import get_available_buckets, generate_presigned_url, copy_object, delete_object, get_object_metadata, put_object_metadata
 
 router = APIRouter()
 
@@ -96,3 +96,32 @@ def delete_item(bucket: str, object_key: str):
         return {"message": "Object deleted successfully"}
     else:
         raise HTTPException(status_code=500, detail="Failed to delete object in S3")
+
+class MetadataUpdateRequest(BaseModel):
+    bucket: str
+    key: str
+    alt_text: str
+    tags: str
+    expiry_date: str
+
+@router.get("/metadata")
+def get_metadata(bucket: str, key: str):
+    if bucket not in get_available_buckets():
+        raise HTTPException(status_code=400, detail="Invalid bucket")
+    return get_object_metadata(bucket, key)
+
+@router.post("/metadata")
+def update_metadata(request: MetadataUpdateRequest):
+    if request.bucket not in get_available_buckets():
+        raise HTTPException(status_code=400, detail="Invalid bucket")
+    success = put_object_metadata(
+        request.bucket, 
+        request.key, 
+        request.alt_text, 
+        request.tags, 
+        request.expiry_date
+    )
+    if success:
+        return {"message": "Metadata updated successfully"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to update S3 object metadata")
